@@ -1,76 +1,159 @@
-# code-with-quarkus
+# Payment Service
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+This project is a RESTful API built with **Quarkus**, the Supersonic Subatomic Java Framework, designed to manage payment transactions. It uses PostgreSQL as the database and supports Docker for containerization.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Tools and Technologies
 
-## Running the application in dev mode
+The following tools and technologies were used to build this application:
 
-You can run your application in dev mode that enables live coding using:
+- **Java 17**: Programming language.
+- **Quarkus 3.30.6**: Java framework.
+- **Maven**: Dependency management and build tool.
+- **PostgreSQL**: Relational database.
+- **Docker & Docker Compose**: Containerization and orchestration.
+- **Hibernate ORM with Panache**: Simplified JPA operations.
+- **Hibernate Validator**: Bean validation.
+- **SmallRye OpenAPI**: API documentation (Swagger UI).
 
-```shell script
-./mvnw quarkus:dev
+## Project Structure
+
+The project follows a standard Maven/Quarkus directory structure:
+
+```
+src/main/java/org/acme/
+├── domain/       # Domain entities and enums (e.g., Status, TypePayment)
+├── dto/          # Data Transfer Objects (Request/Response records)
+├── repository/   # Data access layer (Panache repositories)
+├── resource/     # REST Controllers (API endpoints)
+├── service/      # Business logic layer
+└── exception/    # Custom exception handling
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## Configuration (.env)
 
-## Packaging and running the application
+The application uses environment variables for configuration. A template is provided in `.env-example`.
 
-The application can be packaged using:
+1.  **Create the `.env` file**:
+    Copy the example file to create your local configuration.
+    ```bash
+    cp .env-example .env
+    ```
 
-```shell script
-./mvnw package
+2.  **Configure variables**:
+    Open `.env` and adjust the values if necessary.
+
+    | Variable | Description | Default (Example) |
+    | :--- | :--- | :--- |
+    | `POSTGRES_DB` | Database name | `postgres` |
+    | `POSTGRES_USER` | Database user | `postgres` |
+    | `POSTGRES_PASSWORD` | Database password | `admin123` |
+    | `DB_PORT` | Internal Database port | `5432` |
+    | `APP_PORT` | Application port | `8080` |
+    | `QUARKUS_DATASOURCE_URL` | JDBC URL for the app | `jdbc:postgresql://db:5432/postgres` |
+
+    > **Note:** The `QUARKUS_DATASOURCE_URL` in the example is configured for the Docker network (hostname `db`). If running locally with `mvn quarkus:dev`, you may need to change the host to `localhost` and the port to the exposed port (e.g., `5433` as defined in docker-compose).
+
+## How to Run
+
+### Option 1: Using Docker Compose (Recommended)
+
+This will start both the PostgreSQL database and the Quarkus application in containers.
+
+1.  Ensure Docker and Docker Compose are installed.
+2.  Set up your `.env` file as described above.
+3.  Build and start the services:
+    ```bash
+    docker-compose up --build -d
+    ```
+4.  The application will be available at `http://localhost:8080`.
+5.  The database will be exposed on port `5433` (as per `docker-compose.yml`).
+
+### Option 2: Running Locally (Dev Mode)
+
+1.  Start the database (you can use the db service from docker-compose):
+    ```bash
+    docker-compose up -d db
+    ```
+2.  Update your local configuration (or environment variables) to point to `localhost:5433`.
+3.  Run the application in dev mode:
+    ```bash
+    ./mvnw quarkus:dev
+    ```
+    > **Dev UI:** Available at `http://localhost:8080/q/dev/`.
+
+## API Endpoints
+
+Base URL: `/api/payments`
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| **POST** | `/api/payments` | Create a new payment. |
+| **GET** | `/api/payments` | Retrieve a list of payments. Supports filtering. |
+| **GET** | `/api/payments/{id}` | Retrieve a specific payment by ID. |
+| **PATCH** | `/api/payments/{id}/status` | Update the status of a payment. |
+| **DELETE** | `/api/payments/{id}` | Delete a payment. |
+
+### Query Parameters for `GET /api/payments`
+
+- `status`: Filter by payment status (e.g., PENDING, COMPLETED).
+- `customerId`: Filter by customer ID.
+- `from`: Start date-time filter.
+- `to`: End date-time filter.
+- `page`: Page number (default 0).
+- `size`: Page size (default 10).
+
+## API Examples
+
+### Create Payment
+
+**Request:**
+`POST /api/payments`
+
+```json
+{
+  "reference": "ORD-2023-001",
+  "customerId": 101,
+  "amount": 150.00,
+  "currency": "USD",
+  "method": "CARD"
+}
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+**Response:**
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
+```json
+{
+  "id": 1,
+  "reference": "ORD-2023-001",
+  "customerId": 101,
+  "amount": 150.00,
+  "currency": "USD",
+  "method": "CARD",
+  "status": "PENDING"
+}
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+### Update Status
 
-## Creating a native executable
+**Request:**
+`PATCH /api/payments/1/status`
 
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
+```json
+{
+  "status": "COMPLETED"
+}
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
+**Response:**
 
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
+```json
+{
+  "id": 1,
+  "reference": "ORD-2023-001",
+  "customerId": 101,
+  "amount": 150.00,
+  "currency": "USD",
+  "method": "CARD",
+  "status": "COMPLETED"
+}
 ```
-
-You can then execute your native executable with: `./target/code-with-quarkus-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- REST resources for Hibernate ORM with Panache ([guide](https://quarkus.io/guides/rest-data-panache)): Generate Jakarta REST resources for your Hibernate Panache entities and repositories
-- SmallRye OpenAPI ([guide](https://quarkus.io/guides/openapi-swaggerui)): Document your REST APIs with OpenAPI - comes with Swagger UI
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- JDBC Driver - PostgreSQL ([guide](https://quarkus.io/guides/datasource)): Connect to the PostgreSQL database via JDBC
-
-## Provided Code
-
-### REST Data with Panache
-
-Generating Jakarta REST resources with Panache
-
-[Related guide section...](https://quarkus.io/guides/rest-data-panache)
-
-
-### REST
-
-Easily start your REST Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
